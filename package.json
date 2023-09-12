@@ -1,11 +1,15 @@
 {
   "name": "esbuild-plugin-eval",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
-  "main": "mod.js",
-  "types": "mod.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/mod.js",
+      "types": "./src/mod.d.ts"
+    }
+  },
   "scripts": {
-    "test": "node --experimental-network-imports test"
+    "test": "node --experimental-network-imports tests/test"
   },
   "devDependencies": {
     "@types/node": "^20.6.0",
@@ -22,7 +26,8 @@
     "build",
     "optimizer",
     "runtime",
-    "compiletime"
+    "compiletime",
+    "esbuild-plugin"
   ],
   "license": "MIT",
   "repository": {

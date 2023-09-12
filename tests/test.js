@@ -1,14 +1,16 @@
 import { build } from 'esbuild'
-import evalPlugin from './mod.js'
+import evalPlugin from '../src/mod.js'
 import assert from 'node:assert'
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 
-const outfile = './example/build/worker.js'
+const entryPoint = fileURLToPath(import.meta.resolve('../example/src/index.js'))
+const outfile = fileURLToPath(import.meta.resolve('../example/build/worker.js'))
 
 await build({
   bundle: true,
   format: 'esm',
-  entryPoints: ['./example/src/index.js'],
+  entryPoints: [entryPoint],
   outfile,
   plugins: [evalPlugin],
   allowOverwrite: true,

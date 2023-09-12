@@ -1,4 +1,9 @@
-# esbuild-plugin-eval
+# esbuild-plugin-eval (for Node.JS)
+
+```
+npm install esbuild-plugin-eval --save-dev
+yarn add esbuild-plugin-eval -D
+```
 
 This is an esbuild plugin that evaluates a module before importing it. It's useful in cases where you want to render static parts of your application at build time to prune runtime dependencies, such as pre-rendering html from JSX, or pre-calculating CSP header hashes.
 
@@ -89,3 +94,7 @@ export {
 ```
 
 In this case, we generate JSON schema at build time, and then serve it as a static file at runtime. The two dependecies used to create the schema, namely `zod` and `zod-to-json-schema`, are not included in the final bundle, thus reducing its size from 299KB to just 712 bytes.
+
+---
+
+Thanks to @jed for the original Deno implementation.
