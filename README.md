@@ -24,65 +24,68 @@ export default () => console.log(message)
 
 When added to esbuild's `plugins` option, this plugin will evaluate any imported module with `eval` in the query string of its path. It does this by bundling the module into a data url, dynamically importing it, and then re-exporting the results.
 
-In the provided Deno example, the following file:
+In the provided example, the following file:
 
-```jsx
-import {h} from 'https://unpkg.com/preact@10.5.13/dist/preact.module.js'
-import render from 'https://unpkg.com/preact-render-to-string@5.1.19/dist/index.module.js?module'
-
-let app = <h1>Hello, world!</h1>
-
-export let html = render(app)
-
-export let contentLength = new TextEncoder().encode(html).length
+```js
+// example/src/index.js
+import { jsonSchema } from './schema.eval'
 
 export default {
-  async fetch(request) {
-    return new Response(html, {
-      headers: {
-        'content-type': 'text/html',
-        'content-length': contentLength
-      }
-    })
-  }
+  async fetch() {
+    return new Response(
+      JSON.stringify(jsonSchema),
+      { headers: { 'content-type': 'application/schema+json' } },
+    )
+  },
 }
+
+// example/src/schema.eval.js
+import { z } from 'https://esm.sh/zod@3'
+import { zodToJsonSchema } from 'https://esm.sh/zod-to-json-schema@3'
+
+const mySchema = z
+  .object({
+    myString: z.string().min(5),
+    myUnion: z.union([z.number(), z.boolean()]),
+  })
+  .describe('My neat object schema')
+
+export const jsonSchema = zodToJsonSchema(mySchema, 'mySchema')
 ```
 
 is bundled via the code like the following:
 
 ```js
-import {build, stop} from 'https://deno.land/x/esbuild@v0.14.5/mod.js'
-import evalPlugin from 'https://deno.land/x/esbuild_plugin_eval@v2.0.0/mod.js'
+import { build } from 'esbuild'
+import evalPlugin from 'esbuild-plugin-eval'
+
+const outfile = 
 
 await build({
   bundle: true,
   format: 'esm',
-  entryPoints: ['./example/worker.jsx?eval'],
-  outdir: './example',
+  entryPoints: ['./example/src/index.js'],
+  outfile: './example/build/worker.js',
   plugins: [evalPlugin],
-  jsxFactory: 'h'
-}).then(stop)
+})
 ```
 
 to create the following:
 
 ```js
-var contentLength = 22;
-var html = "<h1>Hello, world!</h1>";
-var worker_default = { "fetch": async function fetch(request) {
-  return new Response(html, {
-    headers: {
-      "content-type": "text/html",
-      "content-length": contentLength
-    }
-  });
-} };
+var jsonSchema = { "$ref": "#/definitions/mySchema", "definitions": { "mySchema": { "type": "object", "properties": { "myString": { "type": "string", "minLength": 5 }, "myUnion": { "type": ["number", "boolean"] } }, "required": ["myString", "myUnion"], "additionalProperties": false, "description": "My neat object schema" } }, "$schema": "http://json-schema.org/draft-07/schema#" };
+
+var src_default = {
+  async fetch() {
+    return new Response(
+      JSON.stringify(jsonSchema),
+      { headers: { "content-type": "application/schema+json" } }
+    );
+  }
+};
 export {
-  contentLength,
-  worker_default as default,
-  html
+  src_default as default
 };
 ```
 
-In this case, Preact is used to render JSX and return plain HTML for a Cloudflare Worker, removing all remote dependencies and render compute overhead.
-
+In this case, we generate JSON schema at build time, and then serve it as a static file at runtime. The two dependecies used to create the schema, namely `zod` and `zod-to-json-schema`, are not included in the final bundle, thus reducing its size from 299KB to just 712 bytes.

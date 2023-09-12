@@ -1,0 +1,32 @@
+{
+  "name": "esbuild-plugin-eval",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "mod.js",
+  "types": "mod.d.ts",
+  "scripts": {
+    "test": "node --experimental-network-imports test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.6.0",
+    "esbuild": "^0.19.2"
+  },
+  "author": "vpctorr",
+  "bugs": {
+    "url": "https://github.com/vpctorr/esbuild-plugin-eval/issues"
+  },
+  "description": "A plugin that evaluates a module before importing it.",
+  "homepage": "https://github.com/vpctorr/esbuild-plugin-eval#readme",
+  "keywords": [
+    "esbuild",
+    "build",
+    "optimizer",
+    "runtime",
+    "compiletime"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vpctorr/esbuild-plugin-eval.git"
+  }
+}

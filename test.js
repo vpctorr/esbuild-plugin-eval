@@ -1,18 +1,24 @@
-import {assertEquals} from 'https://deno.land/std@0.166.0/testing/asserts.ts'
-import {build, stop} from 'https://deno.land/x/esbuild@v0.15.16/mod.js'
+import { build } from 'esbuild'
 import evalPlugin from './mod.js'
+import assert from 'node:assert'
+import { readFile } from 'node:fs/promises'
+
+const outfile = './example/build/worker.js'
 
 await build({
   bundle: true,
   format: 'esm',
-  entryPoints: ['./example/worker.jsx?eval'],
-  outdir: './example',
+  entryPoints: ['./example/src/index.js'],
+  outfile,
   plugins: [evalPlugin],
-  jsxFactory: 'h'
-}).then(stop)
+  allowOverwrite: true,
+})
 
-let {default: worker} = await import('./example/worker.js')
-let response = await worker.fetch()
+const { default: worker } = await import(outfile)
+const response = await worker.fetch()
 
-assertEquals(response.headers.get('content-length'), "22")
-assertEquals(await response.text(), '<h1>Hello, world!</h1>')
+const expected =
+  `{"$ref":"#/definitions/mySchema","definitions":{"mySchema":{"type":"object","properties":{"myString":{"type":"string","minLength":5},"myUnion":{"type":["number","boolean"]}},"required":["myString","myUnion"],"additionalProperties":false,"description":"My neat object schema"}},"$schema":"http://json-schema.org/draft-07/schema#"}`
+
+assert.equal(await response.text(), expected)
+assert.equal((await readFile(outfile, 'utf8')).includes('z'), false)

@@ -1,52 +1,55 @@
 export default {
-  name: 'eval',
+  name: 'eval-plugin-node',
 
-  setup({initialOptions, onLoad, onResolve, esbuild}) {
-    let options = {
+  setup({ initialOptions, onLoad, onResolve, esbuild }) {
+    const options = {
       ...initialOptions,
       bundle: true,
       format: 'esm',
       write: false,
-      metafile: true
+      metafile: true,
     }
 
-    onResolve({filter: /[?&]eval\b/}, ({path, resolveDir}) => {
-      let {pathname} = new URL(path, `file://${resolveDir}/`)
-      return {namespace: 'eval', path: pathname}
+    onResolve({ filter: /\.eval/, namespace: 'file' }, ({ path, resolveDir, kind }) => {
+      if (kind === 'entry-point') throw new Error('You cannot use a .eval file as an entry point.')
+      if (resolveDir.includes('node_modules')) return
+      const { pathname } = new URL(path, `file://${resolveDir}/`)
+      return { namespace: 'eval-plugin-node', path: pathname }
     })
 
-    onLoad({filter: /.*/, namespace: 'eval'}, async ({path}) => {
-      let {metafile, outputFiles} = await esbuild.build({...options, entryPoints: [path]})
-      let file = outputFiles.find(f => /\.m?js$/.test(f.path))
-      let watchFiles = Object.keys(metafile.inputs)
-      let dataurl = await new Promise(cb => {
-        let reader = new FileReader()
-        let blob = new Blob([file.contents])
-        reader.onload = () => cb(reader.result)
-        reader.readAsDataURL(blob)
-      })
+    onLoad({ filter: /.*/, namespace: 'eval-plugin-node' }, async ({ path }) => {
+      const { metafile, outputFiles } = await esbuild.build({ ...options, entryPoints: [path] })
+      const file = outputFiles.find(f => /\.m?js$/.test(f.path))
+      const watchFiles = Object.keys(metafile.inputs)
 
-      let entries = await import(dataurl).then(Object.entries)
-      let contents = entries.reduce((js, [k, v]) => {
-        let ident = k === 'default' ? `${k} ` : `let ${k}=`
+      const dataurl = `data:text/javascript;base64,${Buffer.from(file.contents).toString('base64url')}`
+      const scriptEntries = Object.entries(await import(dataurl))
+
+      const contents = scriptEntries.reduce((js, [k, v]) => {
+        const ident = k === 'default' ? `${k} ` : `let ${k}=`
         return js + `export ${ident}${stringify(v)}\n`
       }, '')
 
-      return {loader: 'js', contents, watchFiles}
+      return { loader: 'js', contents, watchFiles }
     })
-  }
+  },
 }
 
 function stringify(v) {
   switch (typeof v) {
     case 'object':
       if (v === null) return 'null'
-      if (v instanceof Uint8Array) return `Uint8Array.from(atob('${btoa(String.fromCharCode(...v))}'),x=>x.charCodeAt())`
+      if (v instanceof Uint8Array) {
+        return `Uint8Array.from(atob('${btoa(String.fromCharCode(...v))}'),x=>x.charCodeAt())`
+      }
       if (Array.isArray(v)) return `[${v.map(stringify)}]`
       return `{${Object.entries(v).map(e => e.map(stringify).join(':'))}}`
     case 'function':
-      try { return String(eval(`(${v})`)) }
-      catch (e) { return String(v).replace(/^async|^/, '$& function ') }
+      try {
+        return String(eval(`(${v})`))
+      } catch (e) {
+        return String(v).replace(/^async|^/, '$& function ')
+      }
     case 'bigint':
       return `${v}n`
     case 'undefined':
