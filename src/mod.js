@@ -1,3 +1,7 @@
+import { writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 export default {
   name: 'eval-plugin-node',
 
@@ -22,8 +26,17 @@ export default {
       const file = outputFiles.find(f => /\.m?js$/.test(f.path))
       const watchFiles = Object.keys(metafile.inputs)
 
-      const dataurl = `data:text/javascript;base64,${Buffer.from(file.contents).toString('base64url')}`
-      const scriptEntries = Object.entries(await import(dataurl))
+      let scriptEntries = []
+      try {
+        const data = Buffer.from(file.contents).toString('base64url')
+        const dataurl = `data:text/javascript;base64,${data}`
+        scriptEntries = Object.entries(await import(dataurl))
+      } catch (e) {
+        const tempfile = join(tmpdir(), file.path.split("/").pop())
+        await writeFile(tempfile, file.text)
+        scriptEntries = Object.entries(await import(tempfile))
+        await rm(tempfile)
+      }
 
       const contents = scriptEntries.reduce((js, [k, v]) => {
         const ident = k === 'default' ? `${k} ` : `let ${k}=`
