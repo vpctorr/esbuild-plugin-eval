@@ -8,6 +8,9 @@
       "types": "./src/mod.d.ts"
     }
   },
+  "files": [
+    "src"
+  ],
   "scripts": {
     "test": "node --experimental-network-imports tests/test"
   },
